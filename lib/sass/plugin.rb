@@ -39,6 +39,7 @@ module Sass
       :always_check       => true,
       :full_exception     => true
     }
+    @dependencies        = {}
     @checked_for_updates = false
 
     # Register a callback to be run before stylesheets are mass-updated.
@@ -375,7 +376,10 @@ module Sass
     end
 
     def stylesheet_needs_update?(css_file, template_file)
-      return true unless File.exists?(css_file) && File.exists?(template_file)
+      unless File.exists?(css_file) && File.exists?(template_file)
+        @dependencies.delete(template_file)
+        return true
+      end
 
       css_mtime = File.mtime(css_file)
       File.mtime(template_file) > css_mtime ||
@@ -395,6 +399,17 @@ module Sass
     end
 
     def dependencies(filename)
+      stored_mtime, dependencies = @dependencies[filename]
+      current_mtime              = File.mtime(filename)
+
+      if !stored_mtime || stored_mtime < current_mtime
+        @dependencies[filename] = [current_mtime, dependencies = compute_dependencies(filename)]
+      end
+
+      dependencies
+    end
+
+    def compute_dependencies(filename)
       Files.tree_for(filename, engine_options).select {|n| n.is_a?(Tree::ImportNode)}.map do |n|
         next if n.full_filename =~ /\.css$/
         n.full_filename

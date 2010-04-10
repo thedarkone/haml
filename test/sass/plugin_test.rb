@@ -355,6 +355,7 @@ CSS
   end
 
   def reset_mtimes
+    Sass::Plugin.instance_variable_set('@dependencies', {})
     atime = Time.now
     mtime = Time.now - 5
     Dir["{#{template_loc},#{tempfile_loc}}/**/*.{css,sass,scss}"].each {|f| File.utime(atime, mtime, f)}
