@@ -65,26 +65,29 @@ module Sass
     #   the second is the location of the CSS file that it should be compiled to.
     def update_stylesheets(individual_files = [])
       return if options[:never_update]
+      
+      Files.with_cache do
 
-      run_updating_stylesheets individual_files
+        run_updating_stylesheets individual_files
 
-      individual_files.each {|t, c| update_stylesheet(t, c)}
+        individual_files.each {|t, c| update_stylesheet(t, c)}
 
-      @checked_for_updates = true
-      staleness_checker = StalenessChecker.new
+        @checked_for_updates = true
+        staleness_checker = StalenessChecker.new
 
-      template_location_array.each do |template_location, css_location|
+        template_location_array.each do |template_location, css_location|
 
-        Dir.glob(File.join(template_location, "**", "*.s[ca]ss")).sort.each do |file|
-          # Get the relative path to the file
-          name = file.sub(template_location.sub(/\/*$/, '/'), "")
-          css = css_filename(name, css_location)
+          Dir.glob(File.join(template_location, "**", "*.s[ca]ss")).each do |file|
+            # Get the relative path to the file
+            name = file.sub(template_location.sub(/\/*$/, '/'), "")
+            css = css_filename(name, css_location)
 
-          next if forbid_update?(name)
-          if options[:always_update] || staleness_checker.stylesheet_needs_update?(css, file)
-            update_stylesheet file, css
-          else
-            run_not_updating_stylesheet file, css
+            next if forbid_update?(name)
+            if options[:always_update] || staleness_checker.stylesheet_needs_update?(css, file)
+              update_stylesheet file, css
+            else
+              run_not_updating_stylesheet file, css
+            end
           end
         end
       end

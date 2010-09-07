@@ -7,6 +7,24 @@ module Sass
   # related to finding and caching Sass files.
   module Files
     extend self
+    def with_cache
+      Thread.current[:_sass_cache] = {}
+      yield
+    ensure
+      Thread.current[:_sass_cache] = nil
+    end
+    
+    def read_from_cache(filename)
+      if (cache = Thread.current[:_sass_cache]) && hit = cache[File.expand_path(filename)]
+        hit.dup
+      end
+    end
+    
+    def store_to_cache(filename, tree)
+      if cache = Thread.current[:_sass_cache]
+        cache[File.expand_path(filename)] = tree
+      end
+    end
 
     # Returns the {Sass::Tree} for the given file,
     # reading it from the Sass cache if possible.
@@ -20,6 +38,12 @@ module Sass
       default_options = Sass::Engine::DEFAULT_OPTIONS.dup
       default_options.delete(:syntax)
       options = default_options.merge!(options)
+      
+      if cache_hit = read_from_cache(filename)
+        cache_hit.options = options.merge(:filename => filename)
+        return cache_hit
+      end
+      
       text = File.read(filename)
 
       if options[:cache] || options[:read_cache]
@@ -28,6 +52,7 @@ module Sass
 
         if root = try_to_read_sassc(filename, compiled_filename, sha)
           root.options = options.merge(:filename => filename)
+          store_to_cache(filename, root)
           return root
         end
       end
@@ -42,6 +67,7 @@ module Sass
       engine = Sass::Engine.new(text, options)
 
       root = engine.to_tree
+      store_to_cache(filename, root)
       try_to_write_sassc(root, compiled_filename, sha, options) if options[:cache]
       root
     end
