@@ -255,10 +255,11 @@ module Sass
 
     def update_sass_css_pairs(sass_css_pairs)
       if sass_css_pairs.any?
-        forks_to_spin_off = options[:workers] - 1
+        workers_to_use    = [sass_css_pairs.size, options[:workers]].min
+        forks_to_spin_off = workers_to_use - 1
         forked            = false
 
-        sass_css_pairs.in_groups(options[:workers], false).each_with_index do |job, i|
+        sass_css_pairs.in_groups(workers_to_use, false).each_with_index do |job, i|
           forked = i < forks_to_spin_off unless forked
           run_sass_css_update_job(job, i < forks_to_spin_off)
         end
