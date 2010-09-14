@@ -117,7 +117,7 @@ module Sass
     #   The location of the CSS file that was deleted.
     define_callback :deleting_css
 
-    @options = {:full_exception => true}
+    @options = {:full_exception => true, :workers => 1}
 
     # An options hash.
     # See {file:SASS_REFERENCE.md#sass_options the Sass options documentation}.

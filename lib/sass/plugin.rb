@@ -73,23 +73,10 @@ module Sass
         individual_files.each {|t, c| update_stylesheet(t, c)}
 
         @checked_for_updates = true
-        staleness_checker = StalenessChecker.new
-
-        template_location_array.each do |template_location, css_location|
-
-          Dir.glob(File.join(template_location, "**", "*.s[ca]ss")).each do |file|
-            # Get the relative path to the file
-            name = file.sub(template_location.sub(/\/*$/, '/'), "")
-            css = css_filename(name, css_location)
-
-            next if forbid_update?(name)
-            if options[:always_update] || staleness_checker.stylesheet_needs_update?(css, file)
-              update_stylesheet file, css
-            else
-              run_not_updating_stylesheet file, css
-            end
-          end
-        end
+        update, dont_update = check_stylesheets
+        
+        update_sass_css_pairs(update)
+        dont_update.each {|sass_file, css_file| run_not_updating_stylesheet(sass_file, css_file)}
       end
     end
 
@@ -258,6 +245,44 @@ module Sass
 
     def forbid_update?(name)
       name.sub(/^.*\//, '')[0] == ?_
+    end
+
+    def check_stylesheets(staleness_checker = StalenessChecker.new)
+      sass_css_pairs.partition do |sass_file, css_file|
+        options[:always_update] || staleness_checker.stylesheet_needs_update?(css_file, sass_file)
+      end
+    end
+
+    def update_sass_css_pairs(sass_css_pairs)
+      if sass_css_pairs.any?
+        forks_to_spin_off = options[:workers] - 1
+        forked            = false
+
+        sass_css_pairs.in_groups(options[:workers], false).each_with_index do |job, i|
+          forked = i < forks_to_spin_off unless forked
+          run_sass_css_update_job(job, i < forks_to_spin_off)
+        end
+
+        Process.wait if forked
+      end
+    end
+
+    def run_sass_css_update_job(sass_css_pairs, do_fork = false)
+      send(do_fork ? :fork : :tap) do
+        sass_css_pairs.each {|sass_file, css_file| update_stylesheet(sass_file, css_file)}
+      end
+    end
+
+    def sass_css_pairs
+      template_location_array.map do |template_location, css_location|
+        Dir.glob(File.join(template_location, "**", "*.s[ca]ss")).map do |sass_file|
+          # Get the relative path to the file
+          name     = sass_file.sub(template_location.sub(/\/*$/, '/'), "")
+          css_file = css_filename(name, css_location)
+
+          [sass_file, css_file] unless forbid_update?(name)
+        end.compact
+      end.flatten(1)
     end
 
     # Compass expects this to exist
