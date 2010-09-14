@@ -259,9 +259,10 @@ module Sass
         forks_to_spin_off = workers_to_use - 1
         forked            = false
 
-        sass_css_pairs.in_groups(workers_to_use, false).each_with_index do |job, i|
-          forked = i < forks_to_spin_off unless forked
-          run_sass_css_update_job(job, i < forks_to_spin_off)
+        sass_css_pairs.in_groups(workers_to_use, false).each_with_index do |job, job_number|
+          do_fork = job_number < forks_to_spin_off
+          forked  = true if do_fork
+          run_sass_css_update_job(job, do_fork)
         end
 
         Process.wait if forked
