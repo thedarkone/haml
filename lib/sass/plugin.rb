@@ -243,10 +243,6 @@ module Sass
       "#{path}/#{name}".gsub(/\.s[ac]ss$/, '.css')
     end
 
-    def forbid_update?(name)
-      name.sub(/^.*\//, '')[0] == ?_
-    end
-
     def check_stylesheets(staleness_checker = StalenessChecker.new)
       sass_css_pairs.partition do |sass_file, css_file|
         options[:always_update] || staleness_checker.stylesheet_needs_update?(css_file, sass_file)
@@ -277,13 +273,13 @@ module Sass
 
     def sass_css_pairs
       template_location_array.map do |template_location, css_location|
-        Dir.glob(File.join(template_location, "**", "*.s[ca]ss")).map do |sass_file|
+        Dir.glob(File.join(template_location, "**", "[^_]*.s[ca]ss")).map do |sass_file|
           # Get the relative path to the file
           name     = sass_file.sub(template_location.sub(/\/*$/, '/'), "")
           css_file = css_filename(name, css_location)
 
-          [sass_file, css_file] unless forbid_update?(name)
-        end.compact
+          [sass_file, css_file]
+        end
       end.flatten(1)
     end
 
