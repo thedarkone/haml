@@ -435,23 +435,34 @@ END
       s = @attrs[:saturation] / 100.0
       l = @attrs[:lightness] / 100.0
 
-      # Algorithm from the CSS3 spec: http://www.w3.org/TR/css3-color/#hsl-color.
-      m2 = l <= 0.5 ? l * (s + 1) : l + s - l * s
-      m1 = l * 2 - m2
-      @attrs[:red], @attrs[:green], @attrs[:blue] = [
-        hue_to_rgb(m1, m2, h + 1.0/3),
-        hue_to_rgb(m1, m2, h),
-        hue_to_rgb(m1, m2, h - 1.0/3)
-      ].map {|c| (c * 0xff).round}
+      @attrs[:red], @attrs[:green], @attrs[:blue] = hsl_to_rgb(h,s,l).map{|c| (c * 0xff).round}
     end
 
-    def hue_to_rgb(m1, m2, h)
-      h += 1 if h < 0
-      h -= 1 if h > 1
-      return m1 + (m2 - m1) * h * 6 if h * 6 < 1
-      return m2 if h * 2 < 1
-      return m1 + (m2 - m1) * (2.0/3 - h) * 6 if h * 3 < 2
-      return m1
+    # http://en.wikipedia.org/wiki/HSL_and_HSV#From_HSL
+    def hsl_to_rgb(h,s,l)
+      v = l <= 0.5 ? l * (s + 1) : l + s - l * s
+      if v <= 0
+        [0,0,0]
+      else
+        m    = l + l - v
+        sv   = (v - m) / v
+
+        h   *= 6.0
+        i    = h.floor
+
+        vsf  = v * sv * (h - i)
+        mid1 = m + vsf
+        mid2 = v - vsf
+
+        case i
+          when 0; [v, mid1, m]
+          when 1; [mid2, v, m]
+          when 2; [m, v, mid1]
+          when 3; [m, mid2, v]
+          when 4; [mid1, m, v]
+          when 5; [v, m, mid2]
+        end
+      end
     end
 
     def rgb_to_hsl!
